@@ -223,7 +223,7 @@ if os.getenv('DEBUG', 'false').lower() == 'true':
 
 ######################## END OF REQUESTS
 
-
+######################## MATH STEP
 cost_data_yesterday = process_cost_data(usage_response_yesterday)
 cost_data_lastweek = process_cost_data(usage_response_lastweek)
 
@@ -231,3 +231,80 @@ cost_data_lastweek = process_cost_data(usage_response_lastweek)
 # Call the function with cost_data_yesterday
 calculate_and_display_costs(cost_data_yesterday)
 calculate_and_display_costs(cost_data_lastweek)
+
+######################## ANALYTICS
+def compare_service_costs(cost_data_a, cost_data_b, label_a="Current", label_b="Last Week", highlight_threshold=10):
+    """
+    Compare two lists of service cost data and print a table with cost, difference, and percentage change.
+    Highlight significant changes (>highlight_threshold% increase).
+    Also returns a list of HTML rows for email reporting, sorted by absolute Diff (%).
+
+    Args:
+        cost_data_a (list): List of dicts for the first period.
+        cost_data_b (list): List of dicts for the second period.
+        label_a (str): Label for the first period.
+        label_b (str): Label for the second period.
+        highlight_threshold (float): Percentage threshold for highlighting increases.
+
+    Returns:
+        str: HTML table rows for email body.
+    """
+    a_dict = {row['service']: row['cost'] for row in cost_data_a}
+    b_dict = {row['service']: row['cost'] for row in cost_data_b}
+    all_services = set(a_dict) | set(b_dict)
+
+    # Prepare all rows with calculated values
+    rows = []
+    for service in all_services:
+        cost_a = a_dict.get(service, 0)
+        cost_b = b_dict.get(service, 0)
+        diff = cost_a - cost_b
+        try:
+            percent = (diff / cost_b * 100) if cost_b else float('inf') if cost_a else 0
+        except ZeroDivisionError:
+            percent = float('inf')
+        rows.append({
+            "service": service,
+            "cost_a": cost_a,
+            "cost_b": cost_b,
+            "diff": diff,
+            "percent": percent
+        })
+
+    # Sort rows by absolute value of percent difference, descending
+    rows.sort(key=lambda x: abs(x["percent"]), reverse=True)
+
+    print(f"\n{'Service':<25} | {label_a:<15} | {label_b:<15} | Diff (R$)     | Diff (%)")
+    print("-" * 80)
+
+    html_rows = []
+    for row in rows:
+        highlight = row["percent"] > highlight_threshold
+        marker = "**" if highlight else "  "
+        row_str = (
+            f"{marker} "
+            f"{row['service']:<25} | "
+            f"R${row['cost_a']:<13.2f} | "
+            f"R${row['cost_b']:<13.2f} | "
+            f"R${row['diff']:<11.2f} | "
+            f"{row['percent']:>7.2f}%"
+        )
+        print(row_str)
+
+        html_row = (
+            f"<tr style='background-color:#ffcccc;'>" if highlight else "<tr>"
+        )
+        html_row += (
+            f"<td>{row['service']}</td>"
+            f"<td>R${row['cost_a']:,.2f}</td>"
+            f"<td>R${row['cost_b']:,.2f}</td>"
+            f"<td>R${row['diff']:,.2f}</td>"
+            f"<td>{row['percent']:.2f}%</td>"
+            "</tr>"
+        )
+        html_rows.append(html_row)
+    return "\n".join(html_rows)
+
+# After you have cost_data_yesterday and cost_data_lastweek:
+html_report = compare_service_costs(cost_data_yesterday, cost_data_lastweek)
+#print(html_report)
