@@ -1,18 +1,19 @@
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 import requests
+import smtplib
 import json
 import os
+import locale
+import sys
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timedelta
 from jinja2 import Template
 from dotenv import load_dotenv
-import locale
 
-locale.setlocale(locale.LC_ALL, '')
-
-# Load environment variables from a .env file
+######################## SYSTEM
+# # Load environment variables from a .env file
 load_dotenv()
+locale.setlocale(locale.LC_ALL, '')
 
 # Retrieve Azure credentials and other parameters from environment variables
 subscription_id = os.getenv('subscription_id')
@@ -25,6 +26,44 @@ email_smtp_server = os.getenv('email_smtp_server', 'smtp.office365.com')  # Defa
 email_smtp_port = int(os.getenv('email_smtp_port', 587))  # Default to port 587
 email_recipients = os.getenv('email_recipients', '').split(',')
 
+# Validate required environment variables
+if not email_sender:
+    raise ValueError("email_sender environment variable is not set.")
+if not email_recipients or email_recipients == ['']:
+    raise ValueError("email_recipients environment variable is not set.")
+
+######################## END OF SYSTEM
+
+######################## FUNCTIONS
+
+def extract_cost_data(response):
+    """
+    Extract cost data from the Azure API response.
+
+    Args:
+        response (requests.Response): The response object from the Azure API.
+
+    Returns:
+        list: A list of cost data rows.
+
+    Raises:
+        KeyError: If the response JSON does not contain the expected structure.
+    """
+    if (
+        isinstance(response.json(), dict)
+        and 'properties' in response.json()
+        and isinstance(response.json()['properties'], dict)
+        and 'rows' in response.json()['properties']
+    ):
+        return response.json()['properties']['rows']
+    else:
+        print("Unexpected response structure:")
+        print(json.dumps(response.json(), indent=2))
+        raise KeyError("Response JSON does not contain 'properties' or 'rows' as expected.")
+
+######################## END OF FUNCTIONS
+
+
 if os.getenv('DEBUG', 'false').lower() == 'true':
     # Debug print all parameters
     print("Azure Subscription ID:", subscription_id)
@@ -34,12 +73,6 @@ if os.getenv('DEBUG', 'false').lower() == 'true':
     print("Email SMTP Server:", email_smtp_server)
     print("Email SMTP Port:", email_smtp_port)
     print("Email Recipients:", email_recipients)
-
-# Validate required environment variables
-if not email_sender:
-    raise ValueError("email_sender environment variable is not set.")
-if not email_recipients or email_recipients == ['']:
-    raise ValueError("email_recipients environment variable is not set.")
 
 
 # Authenticate with Azure AD and get access token
@@ -55,6 +88,7 @@ access_token = auth_response.json()['access_token']
 
 
 usage_url = f'https://management.azure.com/subscriptions/{subscription_id}/providers/Microsoft.CostManagement/query?api-version=2019-11-01'
+
 usage_data_yesterday = {
     'type': 'Usage',
     'timeframe': 'Custom',
@@ -79,25 +113,45 @@ usage_data_yesterday = {
     }
 }
 
+usage_data_lastweek = {
+    'type': 'Usage',
+    'timeframe': 'Custom',
+    'timePeriod': {
+        'from': (datetime.now() - timedelta(days=8)).strftime('%Y-%m-%dT00:00:00Z'),
+        'to': (datetime.now() - timedelta(days=8)).strftime('%Y-%m-%dT23:59:59Z')
+    },
+    'dataset': {
+        'granularity': 'Daily',
+        'aggregation': {
+            'totalCost': {
+                'name': 'Cost',
+                'function': 'Sum'
+            }
+        },
+        'grouping': [
+            {
+                'type': 'Dimension',
+                'name': 'ServiceName'
+            }
+        ]
+    }
+}
 
+######################## REQUESTS
 usage_response_yesterday = requests.post(usage_url, headers={'Authorization': f'Bearer {access_token}'}, json=usage_data_yesterday)
+usage_response_lastweek = requests.post(usage_url, headers={'Authorization': f'Bearer {access_token}'}, json=usage_data_lastweek)
+
 
 if os.getenv('DEBUG', 'false').lower() == 'true':
     print("Usage Response:", json.dumps(usage_response_yesterday.json(), indent=4))
+    print("Usage Response:", json.dumps(usage_response_lastweek.json(), indent=4))
 
-#  Extract the cost data and print services by cost Validate the structure before accessing nested keys
-if (
-    isinstance(usage_response_yesterday.json(), dict)
-    and 'properties' in usage_response_yesterday.json()
-    and isinstance(usage_response_yesterday.json()['properties'], dict)
-    and 'rows' in usage_response_yesterday.json()['properties']
-):
-    cost_data = usage_response_yesterday.json()['properties']['rows']
-else:
-    print("Unexpected response structure:")
-    print(json.dumps(usage_response_yesterday, indent=2))
-    raise KeyError("Response JSON does not contain 'properties' or 'rows' as expected.")
+######################## END OF REQUESTS
 
+
+# Extract the cost data using the function
+cost_data = extract_cost_data(usage_response_yesterday)
+cost_data_lastweek = extract_cost_data(usage_response_lastweek)
 
 # Convert the list of lists to a list of dictionaries
 cost_data = [
@@ -121,7 +175,7 @@ for row in cost_data:
         total_cost_date_1 = date_obj.strftime("%Y-%m-%d")
     total_cost += row['cost']
 
-total_cost_brls = locale.format_string('%.2f', int(total_cost  * 0.01), True)
+total_cost_brls = total_cost
 
 # Sort the list of dictionaries by cost in descending order
 cost_data_sorted = sorted(cost_data, key=lambda k: k['cost'], reverse=True)
@@ -139,55 +193,3 @@ list_items = [f"<li> ServiceName: {row['service']} - R${row['cost']} {row['curre
 if os.getenv('DEBUG', 'false').lower() == 'true':
     print(f'check: {list_items}')
 
-# Create the email message
-msg = MIMEMultipart()
-msg['From'] = email_sender
-msg['To'] = ', '.join(email_recipients)
-msg['Subject'] = 'Daily Azure Cost Update'
-
-# Create the body of the email
-template = Template('''
-<html>
-    <body>
-        <h2 style="color:blue;"> Azure costs comparisiong yesterday vs -7d: </h2>
-        <p> Total cost on {{ total_cost_date_1 }}: {{ total_cost_brls }} {{ cost_data[0]["currency"] }}</p>
-
-        <h3 style="color:blue;"> Top 5 services by cost: </h3>
-        <ol>
-        {% for row in cost_data_sorted[:5] %}
-            <li>{{ row["service"] }} - {{ row["cost"] }} {{ row["currency"] }}</li>
-        {% endfor %}
-        </ol>
-    </body>
-</html>
-''')
-
-body = template.render(
-    total_cost_date_1=total_cost_date_1,
-    cost_data=cost_data,
-    cost_data_sorted=cost_data_sorted
-)
-
-msg.attach(MIMEText(body, 'html'))
-
-
-if os.getenv('DEBUG', 'false').lower() == 'true':
-    print("Email content:")
-    print("From:", msg['From'])
-    print("To:", msg['To'])
-    print("Subject:", msg['Subject'])
-    print("Body:")
-    # Print the HTML body
-    print(body)
-
-
-# DISABLED SENT MAIL
-# with smtplib.SMTP(email_smtp_server, email_smtp_port) as smtp:
-#     smtp.ehlo()
-#     smtp.starttls()
-#     smtp.ehlo()
-#     if not email_password:
-#         raise ValueError("Email password is not set. Please check your environment variables.")
-#     smtp.login("apikey", email_password)  # Use "apikey" as the login name and the API key as the password
-#     smtp.send_message(msg)
-#     print('Email sent successfully using SendGrid.')
