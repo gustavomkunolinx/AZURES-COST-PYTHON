@@ -22,14 +22,22 @@ email_smtp_server = os.getenv('email_smtp_server', 'smtp.office365.com')  # Defa
 email_smtp_port = int(os.getenv('email_smtp_port', 587))  # Default to port 587
 email_recipients = os.getenv('email_recipients', '').split(',')
 
-# Debug print all parameters
-print("Azure Subscription ID:", subscription_id)
-print("Azure Tenant ID:", tenant_id)
-print("Azure Client ID:", client_id)
-print("Email Sender:", email_sender)
-print("Email SMTP Server:", email_smtp_server)
-print("Email SMTP Port:", email_smtp_port)
-print("Email Recipients:", email_recipients)
+if os.getenv('DEBUG', 'false').lower() == 'true':
+    # Debug print all parameters
+    print("Azure Subscription ID:", subscription_id)
+    print("Azure Tenant ID:", tenant_id)
+    print("Azure Client ID:", client_id)
+    print("Email Sender:", email_sender)
+    print("Email SMTP Server:", email_smtp_server)
+    print("Email SMTP Port:", email_smtp_port)
+    print("Email Recipients:", email_recipients)
+
+# Validate required environment variables
+if not email_sender:
+    raise ValueError("email_sender environment variable is not set.")
+if not email_recipients or email_recipients == ['']:
+    raise ValueError("email_recipients environment variable is not set.")
+
 
 # Authenticate with Azure AD and get access token
 auth_url = f'https://login.microsoftonline.com/{tenant_id}/oauth2/token'
@@ -71,16 +79,27 @@ usage_data = {
 
 usage_response = requests.post(usage_url, headers={'Authorization': f'Bearer {access_token}'}, json=usage_data)
 
-print("Usage Response:", json.dumps(usage_response.json(), indent=4))
+if os.getenv('DEBUG', 'false').lower() == 'true':
+    print("Usage Response:", json.dumps(usage_response.json(), indent=4))
 
-# Extract the cost data and print the top 5 services by cost
-cost_data = usage_response.json()['properties']['rows']
+#  Extract the cost data and print services by cost Validate the structure before accessing nested keys
+if (
+    isinstance(usage_response.json(), dict)
+    and 'properties' in usage_response.json()
+    and isinstance(usage_response.json()['properties'], dict)
+    and 'rows' in usage_response.json()['properties']
+):
+    cost_data = usage_response.json()['properties']['rows']
+else:
+    print("Unexpected response structure:")
+    print(json.dumps(usage_response, indent=2))
+    raise KeyError("Response JSON does not contain 'properties' or 'rows' as expected.")
 
 
 # Convert the list of lists to a list of dictionaries
 cost_data = [
     {
-        'cost': row[0],
+        'cost': round(row[0] * 10**2, 2),
         'date': row[1],
         'service': row[2],
         'currency': row[3]
@@ -91,6 +110,7 @@ cost_data = [
 # Calculate the total cost and the date of the total cost
 total_cost = 0
 total_cost_date = None
+total_cost_date_1 = "N/A"  # Initialize with a default value
 for row in cost_data:
     if total_cost_date is None or row['date'] > total_cost_date:
         total_cost_date = row['date']
@@ -98,18 +118,23 @@ for row in cost_data:
         total_cost_date_1 = date_obj.strftime("%Y-%m-%d")
     total_cost += row['cost']
 
+total_cost_brls = round(total_cost * 10**2, 2)
+
 # Sort the list of dictionaries by cost in descending order
 cost_data_sorted = sorted(cost_data, key=lambda k: k['cost'], reverse=True)
 
 # Print the total cost and its date
-print(f'Total cost on {total_cost_date_1}: {total_cost} {cost_data[0]["currency"]}')
+print(f'Total cost on {total_cost_date_1}: {total_cost_brls} {cost_data[0]["currency"]}')
 
 # Print the top 5 services by cost
 print('Top 5 services by cost:')
-for i, row in enumerate(cost_data_sorted[:6]):
-    print(f"{i+1}. {row['service']} - {row['cost']} {row['currency']}")
+for i, row in enumerate(cost_data_sorted[:7]):
+    print(f"{i+1}. ServiceName: {row['service']} - R${row['cost']} {row['currency']}")
 
-list_items = [f"<li> {row['service']} - {row['cost']} {row['currency']}</li>" for row in cost_data_sorted]
+# Review
+list_items = [f"<li> ServiceName: {row['service']} - R${row['cost']} {row['currency']}</li>" for row in cost_data_sorted]
+if os.getenv('DEBUG', 'false').lower() == 'true':
+    print(f'check: {list_items}')
 
 # Create the email message
 msg = MIMEMultipart()
@@ -122,7 +147,7 @@ template = Template('''
 <html>
     <body>
         <h2 style="color:blue;"> Azure costs comparisiong yesterday vs -7d: </h2>
-        <p> Total cost on {{ total_cost_date_1 }}: {{ total_cost }} {{ cost_data[0]["currency"] }}</p>
+        <p> Total cost on {{ total_cost_date_1 }}: {{ total_cost_brls }} {{ cost_data[0]["currency"] }}</p>
 
         <h3 style="color:blue;"> Top 5 services by cost: </h3>
         <ol>
@@ -142,12 +167,24 @@ body = template.render(
 
 msg.attach(MIMEText(body, 'html'))
 
-with smtplib.SMTP(email_smtp_server, email_smtp_port) as smtp:
-    smtp.ehlo()
-    smtp.starttls()
-    smtp.ehlo()
-    if not email_password:
-        raise ValueError("Email password is not set. Please check your environment variables.")
-    smtp.login("apikey", email_password)  # Use "apikey" as the login name and the API key as the password
-    smtp.send_message(msg)
-    print('Email sent successfully using SendGrid.')
+
+if os.getenv('DEBUG', 'false').lower() == 'true':
+    print("Email content:")
+    print("From:", msg['From'])
+    print("To:", msg['To'])
+    print("Subject:", msg['Subject'])
+    print("Body:")
+    # Print the HTML body
+    print(body)
+
+
+# DISABLED SENT MAIL
+# with smtplib.SMTP(email_smtp_server, email_smtp_port) as smtp:
+#     smtp.ehlo()
+#     smtp.starttls()
+#     smtp.ehlo()
+#     if not email_password:
+#         raise ValueError("Email password is not set. Please check your environment variables.")
+#     smtp.login("apikey", email_password)  # Use "apikey" as the login name and the API key as the password
+#     smtp.send_message(msg)
+#     print('Email sent successfully using SendGrid.')
