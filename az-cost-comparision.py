@@ -7,6 +7,9 @@ import os
 from datetime import datetime, timedelta
 from jinja2 import Template
 from dotenv import load_dotenv
+import locale
+
+locale.setlocale(locale.LC_ALL, '')
 
 # Load environment variables from a .env file
 load_dotenv()
@@ -52,7 +55,7 @@ access_token = auth_response.json()['access_token']
 
 
 usage_url = f'https://management.azure.com/subscriptions/{subscription_id}/providers/Microsoft.CostManagement/query?api-version=2019-11-01'
-usage_data = {
+usage_data_yesterday = {
     'type': 'Usage',
     'timeframe': 'Custom',
     'timePeriod': {
@@ -77,29 +80,29 @@ usage_data = {
 }
 
 
-usage_response = requests.post(usage_url, headers={'Authorization': f'Bearer {access_token}'}, json=usage_data)
+usage_response_yesterday = requests.post(usage_url, headers={'Authorization': f'Bearer {access_token}'}, json=usage_data_yesterday)
 
 if os.getenv('DEBUG', 'false').lower() == 'true':
-    print("Usage Response:", json.dumps(usage_response.json(), indent=4))
+    print("Usage Response:", json.dumps(usage_response_yesterday.json(), indent=4))
 
 #  Extract the cost data and print services by cost Validate the structure before accessing nested keys
 if (
-    isinstance(usage_response.json(), dict)
-    and 'properties' in usage_response.json()
-    and isinstance(usage_response.json()['properties'], dict)
-    and 'rows' in usage_response.json()['properties']
+    isinstance(usage_response_yesterday.json(), dict)
+    and 'properties' in usage_response_yesterday.json()
+    and isinstance(usage_response_yesterday.json()['properties'], dict)
+    and 'rows' in usage_response_yesterday.json()['properties']
 ):
-    cost_data = usage_response.json()['properties']['rows']
+    cost_data = usage_response_yesterday.json()['properties']['rows']
 else:
     print("Unexpected response structure:")
-    print(json.dumps(usage_response, indent=2))
+    print(json.dumps(usage_response_yesterday, indent=2))
     raise KeyError("Response JSON does not contain 'properties' or 'rows' as expected.")
 
 
 # Convert the list of lists to a list of dictionaries
 cost_data = [
     {
-        'cost': round(row[0] * 10**2, 2),
+        'cost': row[0],
         'date': row[1],
         'service': row[2],
         'currency': row[3]
@@ -118,7 +121,7 @@ for row in cost_data:
         total_cost_date_1 = date_obj.strftime("%Y-%m-%d")
     total_cost += row['cost']
 
-total_cost_brls = round(total_cost * 10**2, 2)
+total_cost_brls = locale.format_string('%.2f', int(total_cost  * 0.01), True)
 
 # Sort the list of dictionaries by cost in descending order
 cost_data_sorted = sorted(cost_data, key=lambda k: k['cost'], reverse=True)
