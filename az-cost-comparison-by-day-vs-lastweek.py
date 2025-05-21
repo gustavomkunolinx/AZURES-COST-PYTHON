@@ -211,12 +211,15 @@ def calculate_and_display_costs(cost_data):
     cost_data_sorted = sorted(cost_data, key=lambda k: k['cost'], reverse=True)
 
     # Print the total cost and its date
-    print(f'Total cost on {total_cost_date_1}: {total_cost_brls} {cost_data[0]["currency"]}')
+    if os.getenv('DEBUG', 'false').lower() == 'true':
+        print(f'Total cost on {total_cost_date_1}: {total_cost_brls} {cost_data[0]["currency"]}')
 
     # Print the top 5 services by cost
-    print('Top 5 services by cost:')
-    for i, row in enumerate(cost_data_sorted[:7]):
-        print(f"{i+1}. ServiceName: {row['service']} - R${row['cost']} {row['currency']}")
+
+    if os.getenv('DEBUG', 'false').lower() == 'true':
+        print('Top 5 services by cost:')
+        for i, row in enumerate(cost_data_sorted[:7]):
+            print(f"{i+1}. ServiceName: {row['service']} - R${row['cost']} {row['currency']}")
 
     # Review
     list_items = [f"<li> ServiceName: {row['service']} - R${row['cost']} {row['currency']}</li>" for row in cost_data_sorted]
@@ -333,4 +336,3 @@ def compare_service_costs(cost_data_a, cost_data_b, label_a="Current", label_b="
 
 # After you have cost_data_yesterday and cost_data_lastweek:
 html_report = compare_service_costs(cost_data_yesterday, cost_data_lastweek)
-#print(html_report)
