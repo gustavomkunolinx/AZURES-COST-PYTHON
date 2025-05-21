@@ -1,15 +1,12 @@
 import requests
-import smtplib
 import json
 import os
 import locale
 import sys
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timedelta
-from jinja2 import Template
 from dotenv import load_dotenv
 from utils import azure_auth
+from utils import azure_subscription_queries
 
 ######################## SYSTEM
 # # Load environment variables from a .env file
@@ -38,7 +35,6 @@ usage_url = f'https://management.azure.com/subscriptions/{subscription_id}/provi
 if os.getenv('DEBUG', 'false').lower() == 'true':
     print(f"Argument: api-version: {azure_api_version}")
     print(f"Usage URL: {usage_url}")
-
     # Debug print all parameters
     print("Azure Subscription ID:", subscription_id)
     print("Azure Tenant ID:", tenant_id)
@@ -51,6 +47,7 @@ if os.getenv('DEBUG', 'false').lower() == 'true':
 ######################## END OF SYSTEM
 
 ######################## FUNCTIONS
+
 
 def get_usage_data(days_ago):
     """
@@ -78,21 +75,22 @@ def get_usage_data(days_ago):
                             "operator": "In",
                             "values": [
                                 "Virtual Machines",
-                                "Storage",
                                 "SQL Database",
-                                "App Service",
-                                "Bandwidth"
+                                "Azure App Service",
+                                "Bandwidth",
+                                "Storage",
+                                "Log Analytics"
                             ]
                         }
                     },
                     {
-                        "dimensions": {
-                            "name": "PublisherType",
-                            "operator": "In",
-                            "values": [
-                                "Marketplace"
-                            ]
-                        }
+                    "tags": {
+                        "name": "app",
+                        "operator": "In",
+                        "values": [
+                            "mongodb"
+                        ]
+                    }
                     }
                 ]
             },
@@ -164,6 +162,7 @@ def process_cost_data(usage_response):
 
     return cost_data
 
+
 def calculate_and_display_costs(cost_data):
     """
     Calculate total costs, sort services by cost, and display the results.
@@ -198,7 +197,7 @@ def calculate_and_display_costs(cost_data):
 
     if os.getenv('DEBUG', 'false').lower() == 'true':
         print('Top 5 services by cost:')
-        for i, row in enumerate(cost_data_sorted[:7]):
+        for i, row in enumerate(cost_data_sorted):
             print(f"{i+1}. ServiceName: {row['service']} - R${row['cost']} {row['currency']}")
 
     # Review
@@ -219,7 +218,9 @@ access_token = azure_auth.authenticate_with_azure(tenant_id, client_id, client_s
 
 ########################  Format payloads for the requests
 usage_data_yesterday = get_usage_data(1)
-usage_data_lastweek = get_usage_data(8)
+print("Usage Data Yesterday:", json.dumps(usage_data_yesterday, indent=2))
+
+usage_data_lastweek = get_usage_data(31)
 
 ######################## REQUESTS
 usage_response_yesterday = requests.post(usage_url, headers={'Authorization': f'Bearer {access_token}'}, json=usage_data_yesterday)
@@ -241,8 +242,19 @@ cost_data_lastweek = process_cost_data(usage_response_lastweek)
 calculate_and_display_costs(cost_data_yesterday)
 calculate_and_display_costs(cost_data_lastweek)
 
+# Extract date from usage_data_yesterday
+a_date_from = usage_data_yesterday['timePeriod']['from']
+a_formatted_date = datetime.strptime(a_date_from, "%Y-%m-%dT%H:%M:%SZ").strftime("%d/%m/%Y")
+print(f"Data extracted for comparison: {a_formatted_date}")
+
+# Extract date from usage_data_yesterday
+b_date_from = usage_data_lastweek['timePeriod']['from']
+b_formatted_date = datetime.strptime(b_date_from, "%Y-%m-%dT%H:%M:%SZ").strftime("%d/%m/%Y")
+print(f"Data extracted for comparison: {b_formatted_date}")
+
+
 ######################## ANALYTICS
-def compare_service_costs(cost_data_a, cost_data_b, label_a="Current", label_b="Last Week", highlight_threshold=10):
+def compare_service_costs(cost_data_a, cost_data_b, label_a=a_formatted_date, label_b=b_formatted_date, highlight_threshold=10):
     """
     Compare two lists of service cost data and print a table with cost, difference, and percentage change.
     Highlight significant changes (>highlight_threshold% increase).
@@ -258,6 +270,8 @@ def compare_service_costs(cost_data_a, cost_data_b, label_a="Current", label_b="
     Returns:
         str: HTML table rows for email body.
     """
+
+
     a_dict = {row['service']: row['cost'] for row in cost_data_a}
     b_dict = {row['service']: row['cost'] for row in cost_data_b}
     all_services = set(a_dict) | set(b_dict)
@@ -281,7 +295,7 @@ def compare_service_costs(cost_data_a, cost_data_b, label_a="Current", label_b="
         })
 
     # Sort rows by absolute value of percent difference, descending
-    rows.sort(key=lambda x: abs(x["percent"]), reverse=True)
+    rows.sort(key=lambda x: abs(x["diff"]), reverse=True)
 
     print(f"\n{'Service':<25} | {label_a:<15} | {label_b:<15} | Diff (R$)     | Diff (%)")
     print("-" * 80)

@@ -1,3 +1,15 @@
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from jinja2 import Template
+import os
+
+email_sender = os.getenv('email_sender')
+email_recipients = os.getenv('email_recipients', '').split(',')
+if not email_sender:
+    raise ValueError("email_sender environment variable is not set.")
+if not email_recipients or email_recipients == ['']:
+    raise ValueError("email_recipients environment variable is not set.")
 
 # Create the email message
 msg = MIMEMultipart()
