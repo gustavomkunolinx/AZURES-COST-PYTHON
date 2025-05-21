@@ -68,7 +68,33 @@ def get_usage_data(days_ago):
             'from': (datetime.now() - timedelta(days=days_ago)).strftime('%Y-%m-%dT00:00:00Z'),
             'to': (datetime.now() - timedelta(days=days_ago)).strftime('%Y-%m-%dT23:59:59Z')
         },
-        'dataset': {
+         'dataset': {
+            "filter": {
+                "or": [
+                    {
+                        "dimensions": {
+                            "name": "ServiceName",
+                            "operator": "In",
+                            "values": [
+                                "Virtual Machines",
+                                "Storage",
+                                "SQL Database",
+                                "App Service",
+                                "Bandwidth"
+                            ]
+                        }
+                    },
+                    {
+                        "dimensions": {
+                            "name": "PublisherType",
+                            "operator": "In",
+                            "values": [
+                                "Marketplace"
+                            ]
+                        }
+                    }
+                ]
+            },
             'granularity': 'Daily',
             'aggregation': {
                 'totalCost': {
