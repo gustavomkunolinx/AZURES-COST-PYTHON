@@ -217,10 +217,10 @@ def calculate_and_display_costs(cost_data):
 access_token = azure_auth.authenticate_with_azure(tenant_id, client_id, client_secret)
 
 ########################  Format payloads for the requests
-usage_data_yesterday = get_usage_data(1)
+usage_data_yesterday = azure_subscription_queries.get_usage_data(1)
 print("Usage Data Yesterday:", json.dumps(usage_data_yesterday, indent=2))
 
-usage_data_lastweek = get_usage_data(31)
+usage_data_lastweek = azure_subscription_queries.get_usage_data(31)
 
 ######################## REQUESTS
 usage_response_yesterday = requests.post(usage_url, headers={'Authorization': f'Bearer {access_token}'}, json=usage_data_yesterday)
@@ -234,13 +234,13 @@ if os.getenv('DEBUG', 'false').lower() == 'true':
 ######################## END OF REQUESTS
 
 ######################## MATH STEP
-cost_data_yesterday = process_cost_data(usage_response_yesterday)
-cost_data_lastweek = process_cost_data(usage_response_lastweek)
+cost_data_yesterday = azure_subscription_queries.process_cost_data(usage_response_yesterday)
+cost_data_lastweek = azure_subscription_queries.process_cost_data(usage_response_lastweek)
 
 
 # Call the function with cost_data_yesterday
-calculate_and_display_costs(cost_data_yesterday)
-calculate_and_display_costs(cost_data_lastweek)
+azure_subscription_queries.calculate_and_display_costs(cost_data_yesterday)
+azure_subscription_queries.calculate_and_display_costs(cost_data_lastweek)
 
 # Extract date from usage_data_yesterday
 a_date_from = usage_data_yesterday['timePeriod']['from']
@@ -254,7 +254,7 @@ print(f"Data extracted for comparison: {b_formatted_date}")
 
 
 ######################## ANALYTICS
-def compare_service_costs(cost_data_a, cost_data_b, label_a=a_formatted_date, label_b=b_formatted_date, highlight_threshold=10):
+def azure_subscription_queries.compare_service_costs(cost_data_a, cost_data_b, label_a=a_formatted_date, label_b=b_formatted_date, highlight_threshold=10):
     """
     Compare two lists of service cost data and print a table with cost, difference, and percentage change.
     Highlight significant changes (>highlight_threshold% increase).

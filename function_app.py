@@ -8,16 +8,16 @@ from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from utils import azure_auth
 from utils import azure_subscription_queries
+from utils import email
 
 # Load environment variables and set locale
 load_dotenv()
 locale.setlocale(locale.LC_ALL, '')
 
-# (Copy all your helper functions here: get_usage_data, extract_cost_data, process_cost_data, calculate_and_display_costs, compare_service_costs)
-
 app = func.FunctionApp()
 
-@app.timer_trigger(schedule="0 0 * * * *", arg_name="myTimer", run_on_startup=False, use_monitor=False)
+#@app.timer_trigger(schedule="0 0 * * * *", arg_name="myTimer", run_on_startup=False, use_monitor=False)
+@app.timer_trigger(schedule="0 * * * * *", arg_name="myTimer", run_on_startup=False, use_monitor=False)
 
 def azure_cost_report_1(myTimer: func.TimerRequest) -> None:
 
@@ -72,3 +72,4 @@ def azure_cost_report_1(myTimer: func.TimerRequest) -> None:
     logging.info("Azure Cost Comparison Report:\n" + html_report)
 
     # Send email
+    email.send_email(html_report, email_smtp_server, email_smtp_port, email_password)
