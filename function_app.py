@@ -16,8 +16,7 @@ locale.setlocale(locale.LC_ALL, '')
 
 app = func.FunctionApp()
 
-#@app.timer_trigger(schedule="0 0 * * * *", arg_name="myTimer", run_on_startup=False, use_monitor=False)
-@app.timer_trigger(schedule="0 * * * * *", arg_name="myTimer", run_on_startup=False, use_monitor=False)
+@app.timer_trigger(schedule="10 6 * * * *", arg_name="myTimer", run_on_startup=False, use_monitor=False)
 
 def azure_cost_report_1(myTimer: func.TimerRequest) -> None:
 
@@ -68,8 +67,18 @@ def azure_cost_report_1(myTimer: func.TimerRequest) -> None:
     # Analytics and reporting
     html_report = azure_subscription_queries.compare_service_costs(cost_data_yesterday, cost_data_lastweek, a_formatted_date, b_formatted_date)
 
-    # (Optional) Send email or log the report
-    logging.info("Azure Cost Comparison Report:\n" + html_report)
+    # Set report date environment variable for email
+    os.environ['REPORT_DATE'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    # Send email
-    email.send_email(html_report, email_smtp_server, email_smtp_port, email_password)
+    # (Optional) Log the report
+    logging.info("Azure Cost Comparison Report generated")
+
+    # Send email with proper parameters
+    email.send_email(
+        html_table_rows=html_report,
+        email_smtp_server=email_smtp_server,
+        email_smtp_port=email_smtp_port,
+        email_password=email_password,
+        label_a=a_formatted_date,
+        label_b=b_formatted_date
+    )

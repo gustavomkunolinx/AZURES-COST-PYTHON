@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
-
-
+from dotenv import load_dotenv
+import os
 ######################## FUNCTIONS
 
 
@@ -209,7 +209,7 @@ def compare_service_costs(cost_data_a, cost_data_b, label_a, label_b, highlight_
     rows.sort(key=lambda x: abs(x["diff"]), reverse=True)
 
     print(f"\n{'Service':<25} | {label_a:<15} | {label_b:<15} | Diff (R$)     | Diff (%)")
-    print("-" * 80)
+    print("-" * 96)
 
     html_rows = []
     for row in rows:
@@ -238,5 +238,7 @@ def compare_service_costs(cost_data_a, cost_data_b, label_a, label_b, highlight_
         )
         html_rows.append(html_row)
     return "\n".join(html_rows)
+
+
 
 ######################## END OF FUNCTIONS

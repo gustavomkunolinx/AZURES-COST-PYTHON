@@ -242,18 +242,17 @@ cost_data_lastweek = azure_subscription_queries.process_cost_data(usage_response
 azure_subscription_queries.calculate_and_display_costs(cost_data_yesterday)
 azure_subscription_queries.calculate_and_display_costs(cost_data_lastweek)
 
-# Extract date from usage_data_yesterday
+#### Define dates to compare with
 a_date_from = usage_data_yesterday['timePeriod']['from']
 a_formatted_date = datetime.strptime(a_date_from, "%Y-%m-%dT%H:%M:%SZ").strftime("%d/%m/%Y")
-print(f"Data extracted for comparison: {a_formatted_date}")
+print(f"Data selected for compare (D-1): {a_formatted_date}")
 
-# Extract date from usage_data_yesterday
 b_date_from = usage_data_lastweek['timePeriod']['from']
 b_formatted_date = datetime.strptime(b_date_from, "%Y-%m-%dT%H:%M:%SZ").strftime("%d/%m/%Y")
-print(f"Data extracted for comparison: {b_formatted_date}")
+print(f"Data to compare with selected (D-31): {b_formatted_date}")
 
 
-######################## ANALYTICS
+#### ANALYTICS
 def azure_subscription_queries.compare_service_costs(cost_data_a, cost_data_b, label_a=a_formatted_date, label_b=b_formatted_date, highlight_threshold=10):
     """
     Compare two lists of service cost data and print a table with cost, difference, and percentage change.
