@@ -25,7 +25,6 @@ def execute_cost_comparison(subscription_id):
         logging.info('Executing Azure cost comparison...')
 
         # Retrieve environment variables
-        subscription_id = os.getenv('subscription_id')
         tenant_id = os.getenv('tenant_id')
         client_id = os.getenv('client_id')
         client_secret = os.getenv('client_secret')
