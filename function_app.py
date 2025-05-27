@@ -102,7 +102,7 @@ def execute_cost_comparison(subscription_id):
             "message": f"Failed to generate cost comparison report: {str(e)}"
         }
 
-@app.timer_trigger(schedule="10 6 * * * *", arg_name="daily6am", run_on_startup=False, use_monitor=False)
+@app.timer_trigger(schedule="0 10 6 * * *", arg_name="daily6am", run_on_startup=False, use_monitor=False)
 def schedule_cost_report_1(daily6am: func.TimerRequest) -> None:
     """
     Timer-triggered function that runs the cost comparison on schedule.
