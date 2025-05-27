@@ -41,3 +41,12 @@ print(resultado)
 @Microsoft.KeyVault(VaultName=VAULT NAME";SecretName=tf-sp-subscriptionId)
 @Microsoft.KeyVault(VaultName=VAULT NAME";SecretName=tf-sp-tenantId)
 @Microsoft.KeyVault(VaultName=VAULT NAME";SecretName=sendgrid-email-api-token)
+
+
+curl -X POST -H "Authorization: $TOKEN" https://func-cloud-azure-cost-report.azurewebsites.net/api/azure-cost-report
+
+curl -X GET "https://func-cloud-azure-cost-report.azurewebsites.net/api/cost-report?code=${TOKEN}"
+
+
+
+# TODO: Colocar descrição da subscription que está sendo analisada no e-mail
