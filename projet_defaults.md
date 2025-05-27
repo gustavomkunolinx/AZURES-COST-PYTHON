@@ -1,5 +1,13 @@
 # Default arq
 
+- load venv: 
+  - python -m venv .venv
+  - source .venv/bin/activate
+  - pip install --upgrade pip
+  - pip install -r requirements.txt
+
+- update reqs:  pip freeze > requirements.txt
+
 ```bash
 meu_projeto/
 │
@@ -24,3 +32,12 @@ from utils.calculos import soma
 resultado = soma(5, 3)
 print(resultado)
 ```
+
+
+## Integrate with vault
+
+@Microsoft.KeyVault(VaultName=VAULT NAME";SecretName=tf-sp-clientId)
+@Microsoft.KeyVault(VaultName=VAULT NAME";SecretName=tf-sp-clientSecret)
+@Microsoft.KeyVault(VaultName=VAULT NAME";SecretName=tf-sp-subscriptionId)
+@Microsoft.KeyVault(VaultName=VAULT NAME";SecretName=tf-sp-tenantId)
+@Microsoft.KeyVault(VaultName=VAULT NAME";SecretName=sendgrid-email-api-token)

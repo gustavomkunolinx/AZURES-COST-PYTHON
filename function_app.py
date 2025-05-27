@@ -30,8 +30,9 @@ def azure_cost_report_1(myTimer: func.TimerRequest) -> None:
     tenant_id = os.getenv('tenant_id')
     client_id = os.getenv('client_id')
     client_secret = os.getenv('client_secret')
-    email_sender = os.getenv('email_sender')
-    email_password = os.getenv('email_password')
+    monthly_budget="200000" # Currency BRLs
+    email_sender = os.getenv('email_sender', 'noreply@linx.com.br')
+    email_password = os.getenv('email_password') #FROM VAULT
     email_smtp_server = os.getenv('email_smtp_server', 'smtp.office365.com')
     email_smtp_port = int(os.getenv('email_smtp_port', 587))
     email_recipients = os.getenv('email_recipients', '').split(',')
