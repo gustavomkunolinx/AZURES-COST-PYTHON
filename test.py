@@ -35,3 +35,6 @@ usage_url = f'https://management.azure.com/subscriptions/{subscription_id}/provi
 # Authenticate
 access_token = azure.authenticate_with_azure(tenant_id, client_id, client_secret)
 
+# Get subscription name
+subscription_name = azure.get_subscription_name(subscription_id, access_token)
+print(f"Processing subscription: {subscription_name}")

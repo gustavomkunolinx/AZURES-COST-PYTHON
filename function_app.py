@@ -41,6 +41,10 @@ def execute_cost_comparison(subscription_id):
         # Authenticate
         access_token = azure.authenticate_with_azure(tenant_id, client_id, client_secret)
 
+        # Get subscription name
+        subscription_name = azure.get_subscription_name(subscription_id, access_token)
+        logging.info(f"Processing subscription: {subscription_name}")
+
         # Prepare payloads
         usage_data_yesterday = azure_subscription_queries.get_usage_data(1)
         usage_data_lastweek = azure_subscription_queries.get_usage_data(31)
@@ -69,14 +73,15 @@ def execute_cost_comparison(subscription_id):
         # Set report date environment variable for email
         os.environ['REPORT_DATE'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        # Send email with proper parameters
+        # Send email with proper parameters including subscription name
         email.send_email(
             html_table_rows=html_report,
             email_smtp_server=email_smtp_server,
             email_smtp_port=email_smtp_port,
             email_password=email_password,
             label_a=a_formatted_date,
-            label_b=b_formatted_date
+            label_b=b_formatted_date,
+            subscription_name=subscription_name
         )
 
         logging.info("Azure Cost Comparison Report generated and sent successfully")
@@ -84,6 +89,7 @@ def execute_cost_comparison(subscription_id):
             "status": "success",
             "message": "Cost comparison report generated and sent successfully",
             "report_date": os.environ.get('REPORT_DATE'),
+            "subscription_name": subscription_name,
             "comparison_dates": {
                 "current": a_formatted_date,
                 "previous": b_formatted_date
@@ -127,17 +133,17 @@ def manual_cost_report_1(req: func.HttpRequest) -> func.HttpResponse:
 
     try:
         # Execute the cost comparison
-        result = execute_cost_comparison()
+        result_mvx_dev = execute_cost_comparison("bfb38ea5-2e52-42a4-86a8-b5ff06ef1178")
         
-        if result["status"] == "success":
+        if result_mvx_dev["status"] == "success":
             return func.HttpResponse(
-                body=json.dumps(result, indent=2),
+                body=json.dumps(result_mvx_dev, indent=2),
                 status_code=200,
                 headers={"Content-Type": "application/json"}
             )
         else:
             return func.HttpResponse(
-                body=json.dumps(result, indent=2),
+                body=json.dumps(result_mvx_dev, indent=2),
                 status_code=500,
                 headers={"Content-Type": "application/json"}
             )

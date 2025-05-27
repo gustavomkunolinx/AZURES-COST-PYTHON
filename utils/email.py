@@ -4,7 +4,7 @@ from email.mime.multipart import MIMEMultipart
 from jinja2 import Template
 import os
 
-def send_email(html_table_rows, email_smtp_server, email_smtp_port, email_password, label_a="Current", label_b="Previous"):
+def send_email(html_table_rows, email_smtp_server, email_smtp_port, email_password, label_a="Current", label_b="Previous", subscription_name="Unknown Subscription"):
     email_sender = os.getenv('email_sender')
     email_recipients = os.getenv('email_recipients', '').split(',')
     if not email_sender:
@@ -16,7 +16,7 @@ def send_email(html_table_rows, email_smtp_server, email_smtp_port, email_passwo
     msg = MIMEMultipart()
     msg['From'] = email_sender
     msg['To'] = ', '.join(email_recipients)
-    msg['Subject'] = 'Azure Cost Comparison Report'
+    msg['Subject'] = f'Azure Cost Comparison Report - {subscription_name}'
 
     # Create the HTML email body with the comparison table
     html_body = f"""
@@ -35,11 +35,16 @@ def send_email(html_table_rows, email_smtp_server, email_smtp_port, email_passwo
                 .summary {{ background-color: #e8f4fd; padding: 15px; border-radius: 5px; margin-bottom: 20px; }}
                 .footer {{ margin-top: 30px; font-size: 12px; color: #666; }}
                 .highlight-note {{ color: #d13438; font-weight: bold; margin-top: 10px; }}
+                .subscription-info {{ background-color: #f0f8ff; padding: 10px; border-radius: 5px; margin-bottom: 20px; border-left: 4px solid #0078d4; }}
             </style>
         </head>
         <body>
             <h1>Azure Cost Comparison Report</h1>
-
+            
+            <div class="subscription-info">
+                <h3>Subscription: {subscription_name}</h3>
+            </div>
+            
             <div class="summary">
                 <h2>Cost Comparison: {label_a} vs {label_b}</h2>
                 <p>This report shows the cost comparison between two periods for your Azure services.</p>
@@ -60,13 +65,14 @@ def send_email(html_table_rows, email_smtp_server, email_smtp_port, email_passwo
                     {html_table_rows}
                 </tbody>
             </table>
-
+            
             <p class="highlight-note">
                 * Services highlighted in red indicate cost increases greater than 10%
             </p>
 
             <div class="footer">
                 <p>Generated on: {os.environ.get('REPORT_DATE', 'N/A')}</p>
+                <p>Subscription: {subscription_name}</p>
                 <p>This is an automated report from Azure Cost Management</p>
             </div>
         </body>
