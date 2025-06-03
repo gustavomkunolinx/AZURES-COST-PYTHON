@@ -1,10 +1,10 @@
 # Default arq
 
-- load venv: 
-  - python -m venv .venv
-  - source .venv/bin/activate
-  - pip install --upgrade pip
-  - pip install -r requirements.txt
+- load venv:
+- python -m venv .venv
+- source .venv/bin/activate
+- pip install --upgrade pip
+- pip install -r requirements.txt
 
 - update reqs:  pip freeze > requirements.txt
 
@@ -44,10 +44,9 @@ print(resultado)
 
 
 
-curl -X POST -H "Authorization: $TOKEN" https://func-cloud-azure-cost-report.azurewebsites.net/api/azure-cost-report
+## Test
 
+```bash
+TOKEN=""
 curl -X GET "https://func-cloud-azure-cost-report.azurewebsites.net/api/cost-report?code=${TOKEN}"
-
-
-
-# TODO: Colocar descrição da subscription que está sendo analisada no e-mail
+```

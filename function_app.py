@@ -120,32 +120,41 @@ def schedule_cost_report_1(daily6am: func.TimerRequest) -> None:
 def manual_cost_report_1(req: func.HttpRequest) -> func.HttpResponse:
     """
     HTTP-triggered function to manually start the cost comparison report.
-    
+
     Usage:
     - GET /api/cost-report - Trigger the report generation
     - POST /api/cost-report - Trigger the report generation (supports JSON body for future parameters)
-    
+
     Returns:
     - JSON response with status and details
     """
     logging.info('HTTP trigger function processed a request for manual cost report.')
 
     try:
-        # Execute the cost comparison
-        result_mvx_dev = execute_cost_comparison("bfb38ea5-2e52-42a4-86a8-b5ff06ef1178")
-        
-        if result_mvx_dev["status"] == "success":
+        # List of subscription IDs to process
+        subscription_ids = [
+            "bfb38ea5-2e52-42a4-86a8-b5ff06ef1178",  # DEV
+            "6e6145fd-2644-4673-96f0-a813a725ca4c"   # PROD
+        ]
+
+        results = []
+        for sub_id in subscription_ids:
+            result = execute_cost_comparison(sub_id)
+            results.append(result)
+
+        # Check if all succeeded
+        if all(r["status"] == "success" for r in results):
             return func.HttpResponse(
-                body=json.dumps(result_mvx_dev, indent=2),
-                status_code=200,
-                headers={"Content-Type": "application/json"}
+            body=json.dumps(results, indent=2),
+            status_code=200,
+            headers={"Content-Type": "application/json"}
             )
         else:
-            return func.HttpResponse(
-                body=json.dumps(result_mvx_dev, indent=2),
+                return func.HttpResponse(
+                body=json.dumps(results, indent=2),
                 status_code=500,
                 headers={"Content-Type": "application/json"}
-            )
+                )
 
     except Exception as e:
         error_response = {
