@@ -102,7 +102,7 @@ def execute_cost_comparison(subscription_id):
             "message": f"Failed to generate cost comparison report: {str(e)}"
         }
 
-@app.timer_trigger(schedule="0 10 6 * * *", arg_name="daily6am", run_on_startup=False, use_monitor=False)
+@app.timer_trigger(schedule="0 10 9 * * *", arg_name="daily6am", run_on_startup=False, use_monitor=False)
 def schedule_cost_report_1(daily6am: func.TimerRequest) -> None:
     """
     Timer-triggered function that runs the cost comparison on schedule.
@@ -111,8 +111,18 @@ def schedule_cost_report_1(daily6am: func.TimerRequest) -> None:
         logging.info('The timer is past due!')
 
     logging.info('Timer triggered Azure cost comparison function executed.')
-    result_mvx_dev = execute_cost_comparison("bfb38ea5-2e52-42a4-86a8-b5ff06ef1178")
-    result_mvx_prod = execute_cost_comparison("6e6145fd-2644-4673-96f0-a813a725ca4c")
+
+    try:
+        result_mvx_dev = execute_cost_comparison("bfb38ea5-2e52-42a4-86a8-b5ff06ef1178")
+    except Exception as e:
+        logging.error(f"Error processing DEV subscription: {str(e)}")
+        result_mvx_dev = {"status": "error", "message": str(e)}
+
+    try:
+        result_mvx_prod = execute_cost_comparison("6e6145fd-2644-4673-96f0-a813a725ca4c")
+    except Exception as e:
+        logging.error(f"Error processing PROD subscription: {str(e)}")
+        result_mvx_prod = {"status": "error", "message": str(e)}
 
     logging.info(f"Timer trigger result: DEV {result_mvx_dev} | PROD {result_mvx_prod}")
 
